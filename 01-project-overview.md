@@ -159,9 +159,9 @@ This project automates the deployment of Ping Identity Platform 8 components (Ac
 ## Environment Support
 
 ### Development Environment
-- Single replica per component (no replication)
-- Minimal infrastructure VMs
-- Faster deployment cycles
+- Multiple replicas for testing replication
+- Full infrastructure setup
+- Production-like configuration
 
 ### Test Environment
 - Multiple replicas for testing replication

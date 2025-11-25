@@ -18,63 +18,13 @@ All components use detection logic to determine if they are already installed. T
 
 **File**: `roles/ds/tasks/detect.yml`
 
-```yaml
----
-- name: Check if DS instance exists
-  command: "{{ ds_install_dir }}/{{ ds_instance }}/opendj/bin/status"
-  register: ds_status_check
-  changed_when: false
-  failed_when: false
-  when: ds_instance is defined
-
-- name: Set DS installation status
-  set_fact:
-    ds_installed: "{{ ds_status_check.rc == 0 }}"
-    ds_version: "{{ ds_status_check.stdout | regex_search('version: (.*)') | default('unknown') }}"
-  when: ds_instance is defined
-```
-
 #### AM Detection
 
 **File**: `roles/am/tasks/detect.yml`
 
-```yaml
----
-- name: Check if AM WAR is deployed
-  stat:
-    path: "{{ tomcat_webapps_dir }}/{{ am_context }}.war"
-  register: am_war_file
-
-- name: Check if AM is configured
-  stat:
-    path: "{{ am_cfg_dir }}"
-  register: am_config_dir
-
-- name: Check if AM directory exists
-  stat:
-    path: "{{ am_dir }}"
-  register: am_dir_check
-
-- name: Set AM installation status
-  set_fact:
-    am_installed: "{{ am_war_file.stat.exists and am_config_dir.stat.exists and am_dir_check.stat.exists }}"
-```
-
 #### IDM Detection
 
 **File**: `roles/idm/tasks/detect.yml`
-
-```yaml
----
-- name: Check if IDM is installed
-  stat:
-    path: "{{ idm_extract_dir }}/startup.sh"
-  register: idm_startup
-
-- name: Set IDM installation status
-  set_fact:
-    idm_installed: "{{ idm_startup.stat.exists }}"
-```
 
 ## Directory Services (DS) Deployment
 
@@ -82,195 +32,21 @@ All components use detection logic to determine if they are already installed. T
 
 **File**: `roles/ds/tasks/main.yml`
 
-```yaml
----
-- name: Include detection tasks
-  include_tasks: detect.yml
-
-- name: Include installation tasks
-  include_tasks: install.yml
-  when: not ds_installed | default(false)
-
-- name: Include update tasks
-  include_tasks: update.yml
-  when: ds_installed | default(false)
-
-- name: Include replication tasks
-  include_tasks: replication.yml
-  when: 
-    - ds_installed | default(false)
-    - ds_replication_enabled | default(true)
-    - ds_auto_replication | default(true)
-
-- name: Include verification tasks
-  include_tasks: verify.yml
-```
-
 ### DS Fresh Installation
 
 **File**: `roles/ds/tasks/install.yml`
-
-```yaml
----
-- name: Stop any existing DS processes
-  shell: |
-    pids=$(ps -ef | grep 'org.opends.server.core.DirectoryServer' | grep -v grep | awk '{print $2}') || true
-    if [ -n "$pids" ]; then
-      kill -9 $pids || true
-    fi
-  changed_when: false
-  failed_when: false
-
-- name: Create DS instance directory
-  file:
-    path: "{{ ds_install_dir }}/{{ ds_instance }}"
-    state: directory
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-    mode: '0755'
-
-- name: Extract DS software
-  unarchive:
-    src: "{{ ds_zip_file }}"
-    dest: "{{ ds_install_dir }}/{{ ds_instance }}/tmp"
-    remote_src: false
-    owner: "{{ install_user }}"
-    group: "{{ install_user }}"
-
-- name: Include instance-specific installation
-  include_tasks: "{{ ds_instance }}.yml"
-  when: ds_instance in ['config', 'cts', 'idrepo']
-```
 
 ### DS Config Store Installation
 
 **File**: `roles/ds/tasks/config_store.yml`
 
-```yaml
----
-- name: Install DS Config Store
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj/setup
-    --cli
-    --rootUserDN "{{ ds_admin_dn }}"
-    --rootUserPassword {{ vault('secret/ping/platform8/ds/admin_password') }}
-    --monitorUserPassword {{ vault('secret/ping/platform8/ds/monitor_password') }}
-    --hostname {{ ds_amconfig_server }}
-    --ldapPort {{ ds_amconfig_server_ldap_port }}
-    --ldapsPort {{ ds_amconfig_server_ldaps_port }}
-    --httpPort {{ ds_amconfig_server_http_port }}
-    --httpsPort {{ ds_amconfig_server_https_port }}
-    --adminConnectorPort {{ ds_amconfig_server_admin_connector_port }}
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --profile am-config
-    --set am-config/amConfigAdminPassword:{{ vault('secret/ping/platform8/am/admin_password') }}
-    --start
-    --quiet
-    --no-prompt
-    --acceptLicense
-  args:
-    chdir: "{{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj"
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-
-- name: Export DS Config Store CA certificate
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/opendj/bin/dskeymgr export-ca-cert
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --outputFile {{ am_truststore_folder }}/ds-config-ca-cert.pem
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-```
-
 ### DS CTS Installation
 
 **File**: `roles/ds/tasks/cts.yml`
 
-```yaml
----
-- name: Install DS CTS Store
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj/setup
-    --cli
-    --rootUserDN "{{ ds_admin_dn }}"
-    --rootUserPassword {{ vault('secret/ping/platform8/ds/admin_password') }}
-    --monitorUserPassword {{ vault('secret/ping/platform8/ds/monitor_password') }}
-    --hostname {{ ds_cts_server }}
-    --ldapPort {{ ds_cts_server_ldap_port }}
-    --ldapsPort {{ ds_cts_server_ldaps_port }}
-    --httpPort {{ ds_cts_server_http_port }}
-    --httpsPort {{ ds_cts_server_https_port }}
-    --adminConnectorPort {{ ds_cts_server_admin_connector_port }}
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --profile am-cts
-    --set am-cts/amCtsAdminPassword:{{ vault('secret/ping/platform8/am/admin_password') }}
-    --set am-cts/tokenExpirationPolicy:am-sessions-only
-    --start
-    --quiet
-    --no-prompt
-    --acceptLicense
-  args:
-    chdir: "{{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj"
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-
-- name: Export DS CTS CA certificate
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/opendj/bin/dskeymgr export-ca-cert
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --outputFile {{ am_truststore_folder }}/ds-cts-ca-cert.pem
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-```
-
 ### DS IDRepo Installation
 
 **File**: `roles/ds/tasks/idrepo.yml`
-
-```yaml
----
-- name: Install DS IDRepo Store
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj/setup
-    --cli
-    --rootUserDN "{{ ds_admin_dn }}"
-    --rootUserPassword {{ vault('secret/ping/platform8/ds/admin_password') }}
-    --monitorUserPassword {{ vault('secret/ping/platform8/ds/monitor_password') }}
-    --hostname {{ ds_idrepo_server }}
-    --ldapPort {{ ds_idrepo_server_ldap_port }}
-    --ldapsPort {{ ds_idrepo_server_ldaps_port }}
-    --httpPort {{ ds_idrepo_server_http_port }}
-    --httpsPort {{ ds_idrepo_server_https_port }}
-    --adminConnectorPort {{ ds_idrepo_server_admin_connector_port }}
-    --enableStartTLS
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --profile am-identity-store:8.0.0
-    --set am-identity-store/amIdentityStoreAdminPassword:{{ vault('secret/ping/platform8/am/admin_password') }}
-    --profile idm-repo
-    --set idm-repo/domain:{{ ds_repo_suffix }}
-    --start
-    --quiet
-    --no-prompt
-    --acceptLicense
-  args:
-    chdir: "{{ ds_install_dir }}/{{ ds_instance }}/tmp/opendj"
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-
-- name: Export DS IDRepo CA certificate
-  command: >
-    {{ ds_install_dir }}/{{ ds_instance }}/opendj/bin/dskeymgr export-ca-cert
-    --deploymentId {{ vault('secret/ping/platform8/ds/deployment_id') }}
-    --deploymentIdPassword {{ vault('secret/ping/platform8/ds/deployment_id_password') }}
-    --outputFile {{ am_truststore_folder }}/ds-repo-ca-cert.pem
-  become_user: "{{ install_user }}"
-  when: not ds_installed | default(false)
-```
 
 ### DS Update Procedure
 

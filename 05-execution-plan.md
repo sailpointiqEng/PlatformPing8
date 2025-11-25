@@ -9,52 +9,55 @@ This document provides step-by-step execution procedures for deploying Ping Iden
 ### High-Level Flow
 
 ```
-1. Pre-Deployment Validation (MANDATORY)
+1. Environment Preparation (run first)
    ↓
-2. Infrastructure Deployment
+2. Infrastructure Deployment (run second)
    ↓
-3. Component Deployment (DS → AM → IDM → IG → UI)
+3. Pre-Deployment Validation (must pass)
    ↓
-4. Post-Deployment Configuration
+4. Component Deployment (DS → AM → IDM → IG → UI)
    ↓
-5. AD Integration (if enabled)
+5. Post-Deployment Configuration
    ↓
-6. Verification
+6. AD Integration (if enabled)
+   ↓
+7. Verification
 ```
+
+### Deployment Order Summary
+
+**Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG/UI**
 
 ## Step-by-Step Execution
 
-### Step 1: Pre-Deployment Validation
+### Step 1: Environment Preparation
 
-**Purpose**: Validate all prerequisites before deployment
+**Purpose**: Prepare the environment with all prerequisites
 
-**Playbook**: `playbooks/validate-prerequisites.yml`
+**Playbook**: `playbooks/prepare-environment.yml`
 
 **Command**:
 ```bash
 ansible-playbook -i inventory/{env}/hosts.yml \
   -e "vault_role_id=<ROLE_ID>" \
   -e "vault_secret_id=<SECRET_ID>" \
-  playbooks/validate-prerequisites.yml
+  playbooks/prepare-environment.yml
 ```
 
-**What it checks**:
-- Connectivity to all VMs
-- Port availability
-- Java version and JAVA_HOME
-- Service account (pingIdentity)
-- Installation directories
-- NTP synchronization
-- DNS resolution
-- Software binaries
+**What it does**:
+- Create service account (pingIdentity)
+- Create installation directories (`/opt/ping`, `/opt/ping/am`, `/opt/ping/idm`, `/opt/ping/ds`, `/opt/ping/ig`)
+- Install required OS packages (curl, unzip)
+- Configure hostname + DNS (network team will take care)
+- Configure NTP/time synchronization (network team will take care)
+- Create truststore directory (certs added later)
+- Validate OS version, CPU, RAM, disk space
 
-**Expected Result**: All checks pass
-
-**If validation fails**: Fix issues and re-run validation. Deployment will not proceed until validation passes.
+**Expected Result**: Environment is prepared
 
 ### Step 2: Infrastructure Deployment
 
-**Purpose**: Deploy Tomcat and JDK on infrastructure VMs
+**Purpose**: Deploy Java JDK and Tomcat on infrastructure VMs
 
 **Playbook**: `playbooks/deploy-infrastructure.yml`
 
@@ -68,18 +71,48 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 ```
 
 **What it does**:
-- Installs Tomcat on infrastructure VMs
-- Installs JDK on infrastructure VMs
-- Configures systemd services
-- Verifies installation
+- Install Java JDK (17 or 21 based on Ping docs)
+- Set JAVA_HOME and PATH
+- Install Tomcat (10.x)
+- Deploy baseline Tomcat configs (server.xml, setenv.sh)
+- Open system firewall ports (8080/8443 etc.) - Network team will take care
+- Verify Tomcat starts successfully
 
 **Expected Result**: Infrastructure VMs are ready
 
-### Step 3: Component Deployment
+### Step 3: Pre-Deployment Validation
 
-#### 3.1 Deploy Directory Services (DS)
+**Purpose**: Validate all prerequisites before deployment (MUST PASS)
 
-**Purpose**: Deploy DS instances (Config Store, CTS, IDRepo)
+**Playbook**: `playbooks/validate-prerequisites.yml`
+
+**Command**:
+```bash
+ansible-playbook -i inventory/{env}/hosts.yml \
+  -e "vault_role_id=<ROLE_ID>" \
+  -e "vault_secret_id=<SECRET_ID>" \
+  playbooks/validate-prerequisites.yml
+```
+
+**What it checks**:
+- Validate connectivity to all nodes (ping/SSH)
+- Validate required ports are free and not in use
+- Validate Java version is correct
+- Validate Tomcat installation health
+- Validate truststore directory exists
+- Validate permissions/ownership for installation directories
+- Validate enough disk size
+- Validate Vault connectivity (for pulling secrets)
+
+**Expected Result**: All checks pass
+
+**If validation fails**: Fix issues and re-run validation. Deployment will not proceed until validation passes.
+
+### Step 4: Component Deployment
+
+#### 4.1 Deploy Directory Services (DS)
+
+**Purpose**: Deploy DS instances (Config Store → CTS → IDRepo → replication)
 
 **Playbook**: `playbooks/deploy-ds.yml`
 
@@ -102,9 +135,9 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 
 **Expected Result**: All DS instances are running
 
-#### 3.2 Deploy Access Management (AM)
+#### 4.2 Deploy Access Management (AM)
 
-**Purpose**: Deploy AM on Tomcat infrastructure VMs
+**Purpose**: Deploy AM (WAR + Amster configuration) → two servers
 
 **Playbook**: `playbooks/deploy-am.yml`
 
@@ -124,11 +157,11 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 - Imports authentication trees
 - Updates existing installation (if already installed)
 
-**Expected Result**: AM is deployed and accessible
+**Expected Result**: AM is deployed and accessible on two servers
 
-#### 3.3 Deploy Identity Management (IDM)
+#### 4.3 Deploy Identity Management (IDM)
 
-**Purpose**: Deploy IDM
+**Purpose**: Deploy IDM (application + config + AD connector) → two servers
 
 **Playbook**: `playbooks/deploy-idm.yml`
 
@@ -146,11 +179,12 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 - Extracts and deploys IDM
 - Configures IDM files
 - Connects to DS IDRepo
+- Configures AD connector (if enabled)
 - Updates existing installation (if already installed)
 
-**Expected Result**: IDM is running and connected to DS
+**Expected Result**: IDM is running and connected to DS on two servers
 
-#### 3.4 Deploy Identity Gateway (IG) - Optional
+#### 4.4 Deploy Identity Gateway (IG) - Optional
 
 **Purpose**: Deploy IG if needed
 
@@ -165,7 +199,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
   --limit ig
 ```
 
-#### 3.5 Deploy Platform UI - Optional
+#### 4.5 Deploy Platform UI - Optional
 
 **Purpose**: Deploy UI if needed
 
@@ -180,7 +214,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
   --limit am
 ```
 
-### Step 4: Post-Deployment Configuration
+### Step 5: Post-Deployment Configuration
 
 **Purpose**: Configure AM via REST API and set up integrations
 
@@ -205,7 +239,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 
 **Expected Result**: AM is fully configured
 
-### Step 5: AD Integration
+### Step 6: AD Integration
 
 **Purpose**: Configure AD connector in IDM
 
@@ -228,7 +262,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 
 **Expected Result**: AD integration is functional
 
-### Step 6: Verification
+### Step 7: Verification
 
 **Purpose**: Verify all components and integrations
 
@@ -262,12 +296,13 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 ```
 
 **What it does**:
-1. Retrieves credentials from Vault
-2. Runs pre-deployment validation (MUST PASS)
-3. Deploys infrastructure
-4. Deploys all components
+1. Environment preparation
+2. Infrastructure deployment
+3. Pre-deployment validation (MUST PASS)
+4. Deploys all components (DS → AM → IDM → IG → UI)
 5. Runs post-deployment configuration
 6. Configures AD integration (if enabled)
+7. Verification
 
 ## Environment-Specific Execution
 
@@ -462,13 +497,13 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 ## Execution Timeline
 
 ### Development Environment
-- **Validation**: 5 minutes
-- **Infrastructure**: 10 minutes
-- **DS Deployment**: 15 minutes
-- **AM Deployment**: 20 minutes
-- **IDM Deployment**: 15 minutes
-- **Post-Deployment**: 10 minutes
-- **Total**: ~75 minutes
+- **Validation**: 10 minutes
+- **Infrastructure**: 15 minutes
+- **DS Deployment**: 30 minutes (with replication)
+- **AM Deployment**: 30 minutes
+- **IDM Deployment**: 20 minutes
+- **Post-Deployment**: 15 minutes
+- **Total**: ~120 minutes
 
 ### Test Environment
 - **Validation**: 10 minutes

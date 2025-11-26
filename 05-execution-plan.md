@@ -28,7 +28,7 @@ This document provides step-by-step execution procedures for deploying Ping Iden
 
 ### Deployment Order Summary
 
-**Vault Secrets Setup → Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG/UI**
+**Vault Secrets Setup → Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG → UI**
 
 ## Step-by-Step Execution
 
@@ -226,9 +226,9 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 
 **Expected Result**: IDM is running and connected to DS on two servers
 
-#### 4.4 Deploy Identity Gateway (IG) - Optional
+#### 4.4 Deploy Identity Gateway (IG)
 
-**Purpose**: Deploy IG if needed
+**Purpose**: Deploy IG as required component
 
 **Playbook**: `playbooks/deploy-ig.yml`
 
@@ -346,6 +346,8 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 5. Runs post-deployment configuration
 6. Configures AD integration (if enabled)
 7. Verification
+
+**Note**: Identity Gateway (IG) is a required component and will be deployed as part of the standard deployment process.
 
 ## Environment-Specific Execution
 

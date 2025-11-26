@@ -201,14 +201,14 @@ All of the following MUST pass before deployment:
 1. Deploy DS (Config Store → CTS → IDRepo → replication)
 2. Deploy AM (WAR + Amster configuration) → two servers
 3. Deploy IDM (application + config + AD connector) → two servers
-4. Deploy IG (optional)
+4. Deploy IG (Identity Gateway)
 5. Deploy UI (optional)
 
 **Ansible Task**: `playbooks/deploy-ds.yml`, `playbooks/deploy-am.yml`, `playbooks/deploy-idm.yml`
 
 ## Deployment Order Summary
 
-**Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG/UI**
+**Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG → UI**
 
 ## Failure Handling
 

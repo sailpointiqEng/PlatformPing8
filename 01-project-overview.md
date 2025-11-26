@@ -217,4 +217,6 @@ Refer to the following documentation files for detailed implementation:
 - **06-component-deployment.md**: Component deployment details
 - **07-post-deployment.md**: Post-deployment configuration
 - **08-reference-guide.md**: Reference materials and troubleshooting
+- **09-service-accounts-and-vault-secrets.md**: Service accounts and Vault secrets reference
+- **10-vault-secrets-setup.md**: Vault secrets setup instructions (MUST BE DONE FIRST)
 

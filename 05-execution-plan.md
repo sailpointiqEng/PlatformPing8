@@ -9,6 +9,8 @@ This document provides step-by-step execution procedures for deploying Ping Iden
 ### High-Level Flow
 
 ```
+0. Vault Secrets Setup (MUST BE DONE FIRST)
+   ↓
 1. Environment Preparation (run first)
    ↓
 2. Infrastructure Deployment (run second)
@@ -26,9 +28,48 @@ This document provides step-by-step execution procedures for deploying Ping Iden
 
 ### Deployment Order Summary
 
-**Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG/UI**
+**Vault Secrets Setup → Environment Prep → Infrastructure → Validation → DS → AM → IDM → IG/UI**
 
 ## Step-by-Step Execution
+
+### Step 0: Vault Secrets Setup (MUST BE DONE FIRST)
+
+**Purpose**: Create all required secrets in HashiCorp Vault before deployment
+
+**Documentation**: Refer to **10-vault-secrets-setup.md** for complete instructions
+
+**Prerequisites**:
+- HashiCorp Vault is installed and running
+- Vault CLI is installed and configured
+- Vault authentication is configured
+- KV secrets engine is enabled
+
+**Required Actions**:
+1. Create all DS secrets in Vault
+2. Create all AM secrets in Vault
+3. Create all IDM secrets in Vault
+4. Create all AD secrets in Vault (if AD integration enabled)
+5. Create all common secrets in Vault
+
+**Verification**:
+```bash
+# Run verification script
+./scripts/verify-vault-secrets.sh
+
+# Or run Ansible validation
+ansible-playbook -i inventory/{env}/hosts.yml \
+  -e "vault_role_id=<ROLE_ID>" \
+  -e "vault_secret_id=<SECRET_ID>" \
+  playbooks/validate-vault-secrets.yml
+```
+
+**Expected Result**: All secrets exist in Vault and are accessible
+
+**If secrets are missing**: Deployment will fail. Create all required secrets before proceeding.
+
+**Reference**: See **10-vault-secrets-setup.md** for detailed instructions and scripts
+
+---
 
 ### Step 1: Environment Preparation
 
@@ -95,6 +136,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 ```
 
 **What it checks**:
+- Validate Vault secrets exist (all required secrets are in Vault)
 - Validate connectivity to all nodes (ping/SSH)
 - Validate required ports are free and not in use
 - Validate Java version is correct
@@ -296,6 +338,7 @@ ansible-playbook -i inventory/{env}/hosts.yml \
 ```
 
 **What it does**:
+0. Validates Vault secrets exist (MUST BE DONE FIRST)
 1. Environment preparation
 2. Infrastructure deployment
 3. Pre-deployment validation (MUST PASS)

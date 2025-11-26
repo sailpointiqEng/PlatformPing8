@@ -204,18 +204,26 @@ software_dir: "/path/to/software"
 
 Before executing deployment, verify:
 
+### Vault Setup (MUST BE DONE FIRST)
+
 - [ ] HashiCorp Vault is accessible and configured
-- [ ] All secrets are stored in Vault
+- [ ] All secrets are stored in Vault (see **10-vault-secrets-setup.md**)
 - [ ] AppRole is created and credentials obtained
+- [ ] Vault secrets verification passed
+
+**Reference**: See **10-vault-secrets-setup.md** for complete Vault secrets setup instructions
+
+### General Prerequisites
+
 - [ ] Inventory files are configured for target environment
 - [ ] All software binaries are in place
 - [ ] SSH access is configured (passwordless)
 - [ ] DNS resolution works for all hostnames
 - [ ] Firewall rules are configured (by network team)
-- [ ] Service account (pingIdentity) exists on all VMs
-- [ ] Installation directories are created
+- [ ] Service account (pingIdentity) exists on all VMs (will be created during deployment)
+- [ ] Installation directories are created (will be created during deployment)
 - [ ] Java is installed (or will be installed on infrastructure VMs)
-- [ ] JAVA_HOME is set correctly
+- [ ] JAVA_HOME is set correctly (will be configured during deployment)
 
 ## Validation Commands
 

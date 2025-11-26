@@ -221,7 +221,7 @@ all:
           ansible_host: infra-jdk-1.test.example.com
           infrastructure_role: jdk
           jdk_version: "21"
-    ds:
+ vj,mk    ds:
       hosts:
         ds-config-1:
           ansible_host: ds-config-1.test.example.com

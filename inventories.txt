@@ -1,0 +1,122 @@
+# Base inventory path
+$basePath = "inventories\sandbox"
+
+# Create base directory
+New-Item -ItemType Directory -Force -Path $basePath | Out-Null
+
+# Inventory file definitions
+$inventoryFiles = @{
+    "pingam.yml" = @"
+pingam:
+  children:
+    af:
+      hosts:
+        pingam01:
+        pingam02:
+        pingam03:
+    eu:
+      hosts:
+        eu-pingam01:
+        eu-pingam02:
+        eu-pingam03:
+    us:
+      hosts:
+        us-pingam01:
+        us-pingam02:
+        us-pingam03:
+"@
+
+    "pingds_config.yml" = @"
+pingds_config:
+  children:
+    af:
+      hosts:
+        pingconfig01:
+        pingconfig02:
+    eu:
+      hosts:
+        eu-pingconfig01:
+        eu-pingconfig02:
+    us:
+      hosts:
+        us-pingconfig01:
+        us-pingconfig02:
+"@
+
+    "pingds_cts.yml" = @"
+pingds_cts:
+  children:
+    af:
+      hosts:
+        pingcts01:
+        pingcts02:
+    eu:
+      hosts:
+        eu-pingcts01:
+        eu-pingcts02:
+    us:
+      hosts:
+        us-pingcts01:
+        us-pingcts02:
+"@
+
+    "pingds_ids.yml" = @"
+pingds_ids:
+  children:
+    af:
+      hosts:
+        pingids01:
+        pingids02:
+    eu:
+      hosts:
+        eu-pingids01:
+        eu-pingids02:
+    us:
+      hosts:
+        us-pingids01:
+        us-pingids02:
+"@
+
+    "pingidm.yml" = @"
+pingidm:
+  children:
+    af:
+      hosts:
+        pingidm01:
+        pingidm02:
+    eu:
+      hosts:
+        eu-pingidm01:
+        eu-pingidm02:
+    us:
+      hosts:
+        us-pingidm01:
+        us-pingidm02:
+"@
+
+    "pingig.yml" = @"
+pingig:
+  children:
+    af:
+      hosts:
+        pingig01:
+        pingig02:
+    eu:
+      hosts:
+        eu-pingig01:
+        eu-pingig02:
+    us:
+      hosts:
+        us-pingig01:
+        us-pingig02:
+"@
+}
+
+# Create inventory files
+foreach ($file in $inventoryFiles.Keys) {
+    $filePath = Join-Path $basePath $file
+    $inventoryFiles[$file] | Out-File -FilePath $filePath -Encoding utf8 -Force
+    Write-Host "Created $filePath"
+}
+
+Write-Host "Sandbox inventory files created successfully."
